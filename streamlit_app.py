@@ -6,8 +6,8 @@ import PyPDF2
 import pygsheets
 import tempfile
 
-# Predefined list of Spanish stopwords to avoid NLTK download issues
-SPANISH_STOPWORDS = set([
+# Predefined list of Spanish stopwords
+SPANISH_STOPWORDS = [
     "a", "al", "algo", "algunas", "algunos", "ante", "antes", "como", "con", "contra",
     "cual", "cuando", "de", "del", "desde", "donde", "durante", "e", "el", "ella",
     "ellas", "ellos", "en", "entre", "era", "erais", "eran", "eras", "eres", "es",
@@ -46,7 +46,7 @@ SPANISH_STOPWORDS = set([
     "tuviésemos", "tuvo", "tuya", "tuyas", "tuyo", "tuyos", "tú", "un", "una", "uno",
     "unos", "vosotras", "vosotros", "vuestra", "vuestras", "vuestro", "vuestros", "y",
     "ya", "yo", "él", "éramos"
-])
+]
 
 def open_google_sheet(credentials_file, sheet_title, worksheet_title):
     try:
