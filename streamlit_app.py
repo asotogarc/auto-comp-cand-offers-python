@@ -1,12 +1,52 @@
 import streamlit as st
 import pandas as pd
-import nltk
-from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import PyPDF2
 import pygsheets
 import tempfile
+
+# Predefined list of Spanish stopwords to avoid NLTK download issues
+SPANISH_STOPWORDS = set([
+    "a", "al", "algo", "algunas", "algunos", "ante", "antes", "como", "con", "contra",
+    "cual", "cuando", "de", "del", "desde", "donde", "durante", "e", "el", "ella",
+    "ellas", "ellos", "en", "entre", "era", "erais", "eran", "eras", "eres", "es",
+    "esa", "esas", "ese", "eso", "esos", "esta", "estaba", "estabais", "estaban",
+    "estabas", "estad", "estada", "estadas", "estado", "estados", "estamos", "estando",
+    "estar", "estaremos", "estará", "estarán", "estarás", "estaré", "estaréis",
+    "estaría", "estaríais", "estaríamos", "estarían", "estarías", "estas", "este",
+    "estemos", "esto", "estos", "estoy", "estuve", "estuviera", "estuvierais",
+    "estuvieran", "estuvieras", "estuvieron", "estuviese", "estuvieseis", "estuviesen",
+    "estuvieses", "estuvimos", "estuviste", "estuvisteis", "estuviéramos",
+    "estuviésemos", "estuvo", "está", "estábamos", "estáis", "están", "estás", "esté",
+    "estéis", "estén", "estés", "fue", "fuera", "fuerais", "fueran", "fueras",
+    "fueron", "fuese", "fueseis", "fuesen", "fueses", "fui", "fuimos", "fuiste",
+    "fuisteis", "fuéramos", "fuésemos", "ha", "habida", "habidas", "habido", "habidos",
+    "habiendo", "habremos", "habrá", "habrán", "habrás", "habré", "habréis", "habría",
+    "habríais", "habríamos", "habrían", "habrías", "habéis", "había", "habíais",
+    "habíamos", "habían", "habías", "han", "has", "hasta", "hay", "haya", "hayamos",
+    "hayan", "hayas", "hayáis", "he", "hemos", "hube", "hubiera", "hubierais",
+    "hubieran", "hubieras", "hubieron", "hubiese", "hubieseis", "hubiesen", "hubieses",
+    "hubimos", "hubiste", "hubisteis", "hubiéramos", "hubiésemos", "hubo", "la", "las",
+    "le", "les", "lo", "los", "me", "mi", "mis", "mucho", "muchos", "muy", "más",
+    "mí", "mía", "mías", "mío", "míos", "nada", "ni", "no", "nos", "nosotras",
+    "nosotros", "nuestra", "nuestras", "nuestro", "nuestros", "o", "os", "otra",
+    "otras", "otro", "otros", "para", "pero", "poco", "por", "porque", "que", "quien",
+    "quienes", "qué", "se", "sea", "seamos", "sean", "seas", "seremos", "será",
+    "serán", "serás", "seré", "seréis", "sería", "seríais", "seríamos", "serían",
+    "serías", "seáis", "sido", "siendo", "sin", "sobre", "sois", "somos", "son", "soy",
+    "su", "sus", "suya", "suyas", "suyo", "suyos", "sí", "también", "tanto", "te",
+    "tendremos", "tendrá", "tendrán", "tendrás", "tendré", "tendréis", "tendría",
+    "tendríais", "tendríamos", "tendrían", "tendrías", "tened", "tenemos", "tenga",
+    "tengamos", "tengan", "tengas", "tengo", "tengáis", "tenida", "tenidas", "tenido",
+    "tenidos", "teniendo", "tenéis", "tenía", "teníais", "teníamos", "tenían",
+    "tenías", "ti", "tiene", "tienen", "tienes", "todo", "todos", "tu", "tus", "tuve",
+    "tuviera", "tuvierais", "tuvieran", "tuvieras", "tuvieron", "tuviese", "tuvieseis",
+    "tuviesen", "tuvieses", "tuvimos", "tuviste", "tuvisteis", "tuviéramos",
+    "tuviésemos", "tuvo", "tuya", "tuyas", "tuyo", "tuyos", "tú", "un", "una", "uno",
+    "unos", "vosotras", "vosotros", "vuestra", "vuestras", "vuestro", "vuestros", "y",
+    "ya", "yo", "él", "éramos"
+])
 
 def open_google_sheet(credentials_file, sheet_title, worksheet_title):
     try:
@@ -29,7 +69,6 @@ def open_google_sheet(credentials_file, sheet_title, worksheet_title):
 def read_worksheet(worksheet):
     return worksheet.get_as_df()
 
-# Función para leer contenido de un archivo PDF
 def leer_pdf(file):
     pdf_reader = PyPDF2.PdfReader(file)
     contenido = ""
@@ -37,45 +76,30 @@ def leer_pdf(file):
         contenido += page.extract_text()
     return contenido
 
-# Función para procesar la candidatura y mostrar las ofertas
 def procesar_candidatura(candidatura_texto, empleos_df):
-    # Convertir todas las columnas a cadenas
     empleos_df = empleos_df.astype(str)
     
-    # Verificar si cada columna existe, si no, asignar un valor vacío
     columnas = ['Formación', 'Conocimientos', 'Experiencia', 'Funciones', 'Localidad', 'Provincia', 'Modalidad', 'Tipo de jornada', 'Tipo de contrato', 'Idiomas', 'Nombre', 'campo_1']
     for columna in columnas:
         if columna not in empleos_df.columns:
             empleos_df[columna] = ''
     
-    # Combinar todas las características relevantes en un solo texto por oferta de trabajo
     empleos_df['texto_oferta'] = empleos_df['Formación'] + ' ' + empleos_df['Conocimientos'] + ' ' + empleos_df['Experiencia'] + ' ' + empleos_df['Funciones'] + ' ' + empleos_df['Localidad'] + ' ' + empleos_df['Provincia'] + ' ' + empleos_df['Modalidad'] + ' ' + empleos_df['Tipo de jornada'] + ' ' + empleos_df['Tipo de contrato'] + ' ' + empleos_df['Idiomas'] + ' ' + empleos_df['Nombre'] + ' ' + empleos_df['campo_1']
 
-    # Descargar las stop words en español de NLTK
-    nltk.download('stopwords')
-    stop_words = stopwords.words('spanish')
+    tfidf = TfidfVectorizer(stop_words=SPANISH_STOPWORDS)
 
-    # Crear el objeto TfidfVectorizer con las stop words en español
-    tfidf = TfidfVectorizer(stop_words=stop_words)
-
-    # Generar las matrices TF-IDF para los textos de las ofertas y del perfil del candidato
     X_ofertas = tfidf.fit_transform(empleos_df['texto_oferta'])
     X_perfil = tfidf.transform([candidatura_texto])
 
-    # Calcular las similitudes de coseno entre el perfil del candidato y cada oferta de trabajo
     cosine_sims = cosine_similarity(X_perfil, X_ofertas)
 
-    # Ordenar las ofertas de trabajo por similitud de coseno descendente
     empleos_df['similitud'] = cosine_sims.flatten()
     empleos_df = empleos_df.sort_values('similitud', ascending=False)
 
-    # Seleccionar las 5 primeras ofertas
     top_5_ofertas = empleos_df.head(5)
 
-    # Mostrar la tabla con las 5 primeras ofertas ordenadas
     st.table(top_5_ofertas[['Nombre', 'similitud', 'campo_1']])
 
-# Interfaz de usuario
 st.title("Candidatura de Trabajo")
 
 opcion = st.selectbox("Seleccione una opción", ["Subir archivo PDF", "Rellenar formulario"])
@@ -86,7 +110,6 @@ if opcion == "Subir archivo PDF":
         contenido_pdf = leer_pdf(file)
         st.success("El archivo PDF ha sido procesado correctamente.")
         
-        # Cargar archivo de credenciales
         credentials_file = st.file_uploader("Subir archivo de credenciales JSON", type=["json"])
         if credentials_file is not None:
             sheet_title = "MyNewSheets"
@@ -115,7 +138,6 @@ else:
         if submit:
             candidatura_texto = f"{formacion} {conocimientos} {experiencia} {idiomas} {tipo_contrato} {tipo_jornada} {modalidad} {localidad} {provincia}"
             
-            # Cargar archivo de credenciales
             credentials_file = st.file_uploader("Subir archivo de credenciales JSON", type=["json"])
             if credentials_file is not None:
                 sheet_title = "MyNewSheets"
