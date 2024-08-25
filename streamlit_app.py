@@ -100,49 +100,73 @@ def procesar_candidatura(candidatura_texto, empleos_df):
 
     st.table(top_5_ofertas[['Nombre', 'similitud', 'campo_1']])
 
-st.title("Candidatura de Trabajo")
+# Autenticación
+def check_password():
+    def password_entered():
+        if st.session_state["username"] == "einnova_python_development" and st.session_state["password"] == "scripts_python-ID274":
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # don't store password
+        else:
+            st.session_state["password_correct"] = False
 
-opcion = st.selectbox("Seleccione una opción", ["Subir archivo PDF", "Rellenar formulario"])
+    if "password_correct" not in st.session_state:
+        st.text_input("Usuario", key="username")
+        st.text_input("Contraseña", type="password", key="password")
+        st.button("Iniciar sesión", on_click=password_entered)
+        return False
+    elif not st.session_state["password_correct"]:
+        st.text_input("Usuario", key="username")
+        st.text_input("Contraseña", type="password", key="password")
+        st.button("Iniciar sesión", on_click=password_entered)
+        st.error("😕 Usuario o contraseña incorrectos")
+        return False
+    else:
+        return True
 
-if opcion == "Subir archivo PDF":
-    file = st.file_uploader("Subir archivo PDF", type=["pdf"])
-    if file is not None:
-        contenido_pdf = leer_pdf(file)
-        st.success("El archivo PDF ha sido procesado correctamente.")
-        
-        credentials_file = st.file_uploader("Subir archivo de credenciales JSON", type=["json"])
-        if credentials_file is not None:
-            sheet_title = "MyNewSheets"
-            worksheet_title = "Hoja1"
-            worksheet = open_google_sheet(credentials_file, sheet_title, worksheet_title)
-            if worksheet:
-                empleos_df = read_worksheet(worksheet)
-                procesar_candidatura(contenido_pdf, empleos_df)
-else:
-    with st.form("Formulario de Candidatura"):
-        nombre = st.text_input("Nombre")
-        formacion = st.text_input("Formación")
-        idiomas = st.text_input("Idiomas")
-        conocimientos = st.text_input("Conocimientos")
-        experiencia = st.text_input("Experiencia")
-        salario = st.number_input("Salario", min_value=0)
-        tipo_contrato = st.selectbox("Tipo de Contrato", ["Indefinido", "Temporal", "Prácticas"])
-        tipo_jornada = st.selectbox("Tipo de Jornada", ["Completa", "Parcial"])
-        modalidad = st.selectbox("Modalidad", ["Presencial", "Remoto", "Híbrido"])
-        sector = st.text_input("Sector")
-        localidad = st.text_input("Localidad")
-        provincia = st.text_input("Provincia")
-        
-        submit = st.form_submit_button("Enviar")
-        
-        if submit:
-            candidatura_texto = f"{formacion} {conocimientos} {experiencia} {idiomas} {tipo_contrato} {tipo_jornada} {modalidad} {localidad} {provincia}"
+if check_password():
+    st.title("Candidatura de Trabajo")
+
+    opcion = st.selectbox("Seleccione una opción", ["Subir archivo PDF", "Rellenar formulario"])
+
+    if opcion == "Subir archivo PDF":
+        file = st.file_uploader("Subir archivo PDF", type=["pdf"])
+        if file is not None:
+            contenido_pdf = leer_pdf(file)
+            st.success("El archivo PDF ha sido procesado correctamente.")
             
             credentials_file = st.file_uploader("Subir archivo de credenciales JSON", type=["json"])
             if credentials_file is not None:
                 sheet_title = "MyNewSheets"
-                worksheet_title = "Hoja 1"
+                worksheet_title = "Hoja1"
                 worksheet = open_google_sheet(credentials_file, sheet_title, worksheet_title)
                 if worksheet:
                     empleos_df = read_worksheet(worksheet)
-                    procesar_candidatura(candidatura_texto, empleos_df)
+                    procesar_candidatura(contenido_pdf, empleos_df)
+    else:
+        with st.form("Formulario de Candidatura"):
+            nombre = st.text_input("Nombre")
+            formacion = st.text_input("Formación")
+            idiomas = st.text_input("Idiomas")
+            conocimientos = st.text_input("Conocimientos")
+            experiencia = st.text_input("Experiencia")
+            salario = st.number_input("Salario", min_value=0)
+            tipo_contrato = st.selectbox("Tipo de Contrato", ["Indefinido", "Temporal", "Prácticas"])
+            tipo_jornada = st.selectbox("Tipo de Jornada", ["Completa", "Parcial"])
+            modalidad = st.selectbox("Modalidad", ["Presencial", "Remoto", "Híbrido"])
+            sector = st.text_input("Sector")
+            localidad = st.text_input("Localidad")
+            provincia = st.text_input("Provincia")
+            
+            submit = st.form_submit_button("Enviar")
+            
+            if submit:
+                candidatura_texto = f"{formacion} {conocimientos} {experiencia} {idiomas} {tipo_contrato} {tipo_jornada} {modalidad} {localidad} {provincia}"
+                
+                credentials_file = st.file_uploader("Subir archivo de credenciales JSON", type=["json"])
+                if credentials_file is not None:
+                    sheet_title = "MyNewSheets"
+                    worksheet_title = "Hoja 1"
+                    worksheet = open_google_sheet(credentials_file, sheet_title, worksheet_title)
+                    if worksheet:
+                        empleos_df = read_worksheet(worksheet)
+                        procesar_candidatura(candidatura_texto, empleos_df)
